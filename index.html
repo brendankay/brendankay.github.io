@@ -1,172 +1,254 @@
-<html>
-    <head>
-        <style>
-        #match-output {
-            width: 250px;
-            border: 1px solid #000;
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tennis Score Tracker</title>
+  <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      margin: 20px;
+    }
+
+    .buttons button {
+        margin: 5px;
+    }
+  </style>
+</head>
+<body>
+
+  <h2>Tennis Score Tracker</h2>
+  
+  <div class="buttons">
+    <div>
+        <button onclick="addWin()">Add Win</button>
+        <button onclick="addLoss()">Add Loss</button>
+        <button onclick="removeLastPoint()">Remove Last Point</button>
+    </div>
+    <div>
+        <button onclick="markWinner()">Winner</button>
+        <button onclick="addUnforcedError()">Unforced Error</button>
+        <button onclick="addDoubleFault()">Double Fault</button>
+    </div>
+    <div>
+        <button onclick="startNewSet()">Start New Set</button>
+        <button onclick="startNewGame()">Start New Game</button>
+    </div>
+  </div>
+  <div id="graph"></div>
+
+  <script>
+    let points = [];
+    let cumulativePoints = [0];
+    let setIndicators = [];
+    let setNumberCounter = 2;
+    let gameIndicators = [];
+    let gameNumberCounter = 2;
+    let winnerPoints = [];
+    let unforcedErrorPoints = [];
+    let doubleFaultPoints = [];
+
+    function addWin() {
+      points.push('W');
+      cumulativePoints.push(cumulativePoints[cumulativePoints.length - 1] + 1);
+      updateGraph();
+    }
+
+    function addLoss() {
+      points.push('L');
+      cumulativePoints.push(cumulativePoints[cumulativePoints.length - 1] - 1);
+      updateGraph();
+    }
+
+    function addUnforcedError() {
+      unforcedErrorPoints.push(cumulativePoints.length + 1); // Fix indexing
+      updateGraph();
+    }
+
+    function addDoubleFault() {
+      doubleFaultPoints.push(cumulativePoints.length + 1); // Fix indexing
+      updateGraph();
+    }
+
+    function removeLastPoint() {
+      if (points.length > 0) {
+        const lastPoint = points.pop();
+        cumulativePoints.pop();
+        
+        // Check if a set indicator is present and relates to the point being removed
+        if (setIndicators.length > 0) {
+          const lastSetIndicator = setIndicators.pop();
+          if (lastSetIndicator && lastSetIndicator.index === cumulativePoints.length) {
+            setNumberCounter--;
+          } else {
+            // If the set indicator does not relate to the removed point, push it back
+            setIndicators.push(lastSetIndicator);
+          }
         }
 
-        .set {
-            border: 1px solid #999;
+        // Check if a game indicator is present and relates to the point being removed
+        if (gameIndicators.length > 0) {
+          const lastGameIndicator = gameIndicators.pop();
+          if (lastGameIndicator && lastGameIndicator.index === cumulativePoints.length) {
+            gameNumberCounter--;
+          } else {
+            // If the game indicator does not relate to the removed point, push it back
+            gameIndicators.push(lastGameIndicator);
+          }
         }
 
-        .set > .title {
-            font-weight: bold;
+        // Remove symbols only if they relate to the point being removed
+        if (winnerPoints.length > 0 && winnerPoints[winnerPoints.length - 1] === cumulativePoints.length + 1) {
+          winnerPoints.pop();
         }
 
-        .game > .title {
-            padding-right: 10px;
-        }
-        </style>
-    </head>
-    <body>
-        <div>
-            Opponent:
-            <input type="text" id="opponent" />
-        </div>
-        <button id="won-point">Won point</button>
-        <button id="lost-point">Lost point</button>
-        <button id="new-game">New Game</button>
-        <button id="new-set">New Set</button>
-        <button id="graph">Graph</button>
-
-        <div id="match-output"></div>
-        <div id="match-graph"></div>
-
-        <script>
-        class Match {
-            sets = [];
-            displayElement = null;
-
-            constructor() {
-                this.displayElement = document.getElementById('match-output');
-            }
-
-            newSet() {
-                var set = new Set(this.sets.length + 1)
-
-                this.sets.push(set);
-                this.displayElement.appendChild(set.displayElement);
-            }
-
-            getCurrentSet() {
-                if (this.sets.length == 0) {
-                    return null;
-                }
-
-                return this.sets[this.sets.length - 1];
-            }
+        if (unforcedErrorPoints.length > 0 && unforcedErrorPoints[unforcedErrorPoints.length - 1] === cumulativePoints.length + 1) {
+          unforcedErrorPoints.pop();
         }
 
-        class Set {
-            number = null;
-            games = [];
-            displayElement = null;
-
-            constructor(number) {
-                this.number = number;
-
-                this.displayElement = document.createElement('div');
-                this.displayElement.className = 'set';
-                this.displayElement.innerHTML = '<div class="title">Set ' + this.number + '</div>';
-            }
-
-            newGame() {
-                var game = new Game(this.games.length + 1);
-
-                this.games.push(game);
-                this.displayElement.appendChild(game.displayElement);
-            }
-
-            getCurrentGame() {
-                if (this.games.length == 0) {
-                    return null;
-                }
-
-                return this.games[this.games.length - 1];
-            }
+        if (doubleFaultPoints.length > 0 && doubleFaultPoints[doubleFaultPoints.length - 1] === cumulativePoints.length + 1) {
+          doubleFaultPoints.pop();
         }
 
-        class Game {
-            number = null;
-            points = [];
-            displayElement = null;
+        updateGraph();
+      }
+    }
 
-            constructor(number) {
-                this.number = number;
+    function startNewSet() {
+      setIndicators.push({
+        index: cumulativePoints.length - 1,
+        setNumber: setNumberCounter++
+      });
+      gameNumberCounter = 2; // Reset game counter when a new set starts
+      updateGraph();
+    }
 
-                this.displayElement = document.createElement('div');
-                this.displayElement.className = 'game';
-                this.displayElement.innerHTML = '<span class="title">Game ' + this.number + '</span>';
-            }
+    function startNewGame() {
+      gameIndicators.push({
+        index: cumulativePoints.length - 1,
+        gameNumber: gameNumberCounter++
+      });
+      updateGraph();
+    }
 
-            addPoint(won) {
-                this.points.push(won);
+    function markWinner() {
+      winnerPoints.push(cumulativePoints.length); // Fix indexing
+      updateGraph();
+    }
 
-                this.displayElement.innerHTML += won ? 'W' : 'L';
-            }
+    function updateGraph() {
+      const data = [{
+        x: Array.from({ length: cumulativePoints.length }, (_, i) => i + 1),
+        y: cumulativePoints,
+        type: 'scatter',
+        mode: 'lines+markers',
+        marker: { color: 'blue' },
+        line: { shape: 'linear' }
+      }];
+
+      const setShapes = setIndicators.map(indicator => ({
+        type: 'line',
+        x0: indicator.index + 1,
+        x1: indicator.index + 1,
+        y0: Math.min(...cumulativePoints),
+        y1: Math.max(...cumulativePoints),
+        line: {
+          color: 'red',
+          width: 2,
+          dash: 'dashdot'
         }
+      }));
 
-        document.getElementById('won-point').addEventListener('click', () => {
-            match.getCurrentSet().getCurrentGame().addPoint(true);
-        });
+      const setAnnotations = setIndicators.map(indicator => ({
+        x: indicator.index + 1,
+        y: Math.max(...cumulativePoints),
+        xref: 'x',
+        yref: 'y',
+        text: `Set ${indicator.setNumber}`,
+        showarrow: true,
+        arrowhead: 4,
+        ax: 0,
+        ay: -40
+      }));
 
-        document.getElementById('lost-point').addEventListener('click', () => {
-            match.getCurrentSet().getCurrentGame().addPoint(false);
-        });
+      const gameShapes = gameIndicators.map(indicator => ({
+        type: 'line',
+        x0: indicator.index + 1,
+        x1: indicator.index + 1,
+        y0: Math.min(...cumulativePoints),
+        y1: Math.max(...cumulativePoints),
+        line: {
+          color: 'green', // Different color for game indicators
+          width: 2,
+          dash: 'dashdot'
+        }
+      }));
 
-        document.getElementById('new-game').addEventListener('click', () => {
-            match.getCurrentSet().newGame();
-        });
+      const gameAnnotations = gameIndicators.map(indicator => ({
+        x: indicator.index + 1,
+        y: Math.max(...cumulativePoints),
+        xref: 'x',
+        yref: 'y',
+        text: `Game ${indicator.gameNumber}`,
+        showarrow: true,
+        arrowhead: 4,
+        ax: 0,
+        ay: -60,
+        font: { color: 'green' } // Font color for game annotations
+      }));
 
-        document.getElementById('new-set').addEventListener('click', () => {
-            match.newSet();
-            match.getCurrentSet().newGame();
-        });
+      const winnerShapes = winnerPoints.map(point => ({
+        x: [point],
+        y: [cumulativePoints[point - 1]],
+        type: 'scatter',
+        mode: 'markers',
+        marker: {
+          symbol: 'circle', // Change to circle symbol for winner points
+          size: 15,
+          color: 'green'
+        }
+      }));
 
-        document.getElementById('graph').addEventListener('click', () => {
-            var labels = [];
-            var data = [];
-            var tally = 0;
-            match.sets.forEach((set) => {
-                set.games.forEach((game) => {
-                    game.points.forEach((point) => {
-                        labels.push(labels.length + 1);
+      const unforcedErrorShapes = unforcedErrorPoints.map(point => ({
+        x: [point],
+        y: [cumulativePoints[point - 1]],
+        type: 'scatter',
+        mode: 'markers',
+        marker: {
+          symbol: 'circle', // Red circle symbol for unforced error points
+          size: 15,
+          color: 'red'
+        }
+      }));
 
-                        tally += point ? 1 : -1;
-                        data.push(tally);
-                    });
-                });
-            });
+      const doubleFaultShapes = doubleFaultPoints.map(point => ({
+        x: [point],
+        y: [cumulativePoints[point - 1]],
+        type: 'scatter',
+        mode: 'markers',
+        marker: {
+          symbol: 'circle', // Black circle symbol for double fault points
+          size: 15,
+          color: 'black'
+        }
+      }));
 
-            var graphData = {
-                type: 'line',
-                data: {
-                    labels: labels,
-                    datasets: [
-                        {
-                            label: '',
-                            data: data,
-                        },
-                    ],
-                },
-                options: {
-                    title: {
-                        display: true,
-                        text: 'vs ' + document.getElementById('opponent').value,
-                    },
-                    legend: {
-                        display: false,
-                    },
-                },
-            };
+      const layout = {
+        title: 'Cumulative Points',
+        xaxis: { title: 'Points' },
+        yaxis: { title: 'Cumulative Points' },
+        shapes: [...setShapes, ...gameShapes],
+        annotations: [...setAnnotations, ...gameAnnotations]
+      };
 
-            document.getElementById('match-graph').innerHTML = "<img src='https://quickchart.io/chart?c=" + JSON.stringify(graphData) + "' />";
-        });
+      // Updating the winner, unforced error, and double fault points separately
+      Plotly.newPlot('graph', data, layout);
+      Plotly.addTraces('graph', [...winnerShapes, ...unforcedErrorShapes, ...doubleFaultShapes]);
+    }
+  </script>
 
-        match = new Match()
-        match.newSet();
-        match.getCurrentSet().newGame();
-        </script>
-    </body>
+</body>
 </html>
+
