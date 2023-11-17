@@ -63,12 +63,12 @@
     }
 
     function addUnforcedError() {
-      unforcedErrorPoints.push(cumulativePoints.length + 1); // Fix indexing
+      unforcedErrorPoints.push(cumulativePoints.length); // Fix indexing
       updateGraph();
     }
 
     function addDoubleFault() {
-      doubleFaultPoints.push(cumulativePoints.length + 1); // Fix indexing
+      doubleFaultPoints.push(cumulativePoints.length); // Fix indexing
       updateGraph();
     }
 
