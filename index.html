@@ -1,0 +1,172 @@
+<html>
+    <head>
+        <style>
+        #match-output {
+            width: 250px;
+            border: 1px solid #000;
+        }
+
+        .set {
+            border: 1px solid #999;
+        }
+
+        .set > .title {
+            font-weight: bold;
+        }
+
+        .game > .title {
+            padding-right: 10px;
+        }
+        </style>
+    </head>
+    <body>
+        <div>
+            Opponent:
+            <input type="text" id="opponent" />
+        </div>
+        <button id="won-point">Won point</button>
+        <button id="lost-point">Lost point</button>
+        <button id="new-game">New Game</button>
+        <button id="new-set">New Set</button>
+        <button id="graph">Graph</button>
+
+        <div id="match-output"></div>
+        <div id="match-graph"></div>
+
+        <script>
+        class Match {
+            sets = [];
+            displayElement = null;
+
+            constructor() {
+                this.displayElement = document.getElementById('match-output');
+            }
+
+            newSet() {
+                var set = new Set(this.sets.length + 1)
+
+                this.sets.push(set);
+                this.displayElement.appendChild(set.displayElement);
+            }
+
+            getCurrentSet() {
+                if (this.sets.length == 0) {
+                    return null;
+                }
+
+                return this.sets[this.sets.length - 1];
+            }
+        }
+
+        class Set {
+            number = null;
+            games = [];
+            displayElement = null;
+
+            constructor(number) {
+                this.number = number;
+
+                this.displayElement = document.createElement('div');
+                this.displayElement.className = 'set';
+                this.displayElement.innerHTML = '<div class="title">Set ' + this.number + '</div>';
+            }
+
+            newGame() {
+                var game = new Game(this.games.length + 1);
+
+                this.games.push(game);
+                this.displayElement.appendChild(game.displayElement);
+            }
+
+            getCurrentGame() {
+                if (this.games.length == 0) {
+                    return null;
+                }
+
+                return this.games[this.games.length - 1];
+            }
+        }
+
+        class Game {
+            number = null;
+            points = [];
+            displayElement = null;
+
+            constructor(number) {
+                this.number = number;
+
+                this.displayElement = document.createElement('div');
+                this.displayElement.className = 'game';
+                this.displayElement.innerHTML = '<span class="title">Game ' + this.number + '</span>';
+            }
+
+            addPoint(won) {
+                this.points.push(won);
+
+                this.displayElement.innerHTML += won ? 'W' : 'L';
+            }
+        }
+
+        document.getElementById('won-point').addEventListener('click', () => {
+            match.getCurrentSet().getCurrentGame().addPoint(true);
+        });
+
+        document.getElementById('lost-point').addEventListener('click', () => {
+            match.getCurrentSet().getCurrentGame().addPoint(false);
+        });
+
+        document.getElementById('new-game').addEventListener('click', () => {
+            match.getCurrentSet().newGame();
+        });
+
+        document.getElementById('new-set').addEventListener('click', () => {
+            match.newSet();
+            match.getCurrentSet().newGame();
+        });
+
+        document.getElementById('graph').addEventListener('click', () => {
+            var labels = [];
+            var data = [];
+            var tally = 0;
+            match.sets.forEach((set) => {
+                set.games.forEach((game) => {
+                    game.points.forEach((point) => {
+                        labels.push(labels.length + 1);
+
+                        tally += point ? 1 : -1;
+                        data.push(tally);
+                    });
+                });
+            });
+
+            var graphData = {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: '',
+                            data: data,
+                        },
+                    ],
+                },
+                options: {
+                    title: {
+                        display: true,
+                        text: 'vs ' + document.getElementById('opponent').value,
+                    },
+                    legend: {
+                        display: false,
+                    },
+                },
+            };
+
+            document.getElementById('match-graph').innerHTML = "<img src='https://quickchart.io/chart?c=" + JSON.stringify(graphData) + "' />";
+        });
+
+        match = new Match()
+        match.newSet();
+        match.getCurrentSet().newGame();
+        </script>
+    </body>
+</html>
